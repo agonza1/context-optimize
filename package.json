@@ -1,0 +1,10 @@
+{
+  "name": "context-optimize",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local-first context pressure reduction for OpenClaw",
+  "scripts": {
+    "test": "node --test"
+  }
+}
