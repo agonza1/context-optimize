@@ -1,119 +1,197 @@
 # context-optimize v0.1
 
-## Problem
+## Core objective
 
-OpenClaw already provides memory, sessions, skills, and orchestration, but it does not yet provide a focused local layer for transient high-volume artifacts such as logs, large command output, codebase scans, and bulky fetched content. These artifacts can waste prompt budget without belonging in durable memory.
+Reduce prompt-token waste by intercepting bulky **tool call outputs before they are injected into model context**.
 
-## Non-goals
+This project is **not** a general memory system, not a clone of context-mode, and not a replacement for OpenClaw session continuity. It is a narrow OpenClaw-native layer for handling noisy transient tool outputs safely.
 
-- Do not clone context-mode feature-for-feature
-- Do not add telemetry or version phone-home behavior
-- Do not create a parallel durable memory system
-- Do not introduce broad hard-blocking shell interception in v0.1
+## Product boundary
 
-## Product shape
+### In scope
+- Tool-result interception only
+- Local storage of bulky raw tool output
+- Compact replacement payloads passed to the model instead of raw blobs
+- Targeted retrieval of stored output when needed
+- Workspace + session scoping
+- 24h retention and pruning
 
-OpenClaw-native private project that adds:
+### Out of scope
+- User-message interception
+- Assistant-text interception
+- Durable memory / personal memory
+- Replacing OpenClaw work-state/session snapshots
+- General-purpose remote fetching or telemetry
+- Hiding source code/diffs that require exact review
 
-1. Scratch index
-2. Working-state snapshots
-3. Context-pressure heuristics
-4. Skill/policy guidance for code-first analysis
+## Core requirement
 
-## Phase 1 features
+Interception must happen **after tool execution but before raw output is added to prompt context**.
 
-### 1. Scratch index
-Local SQLite database with FTS for transient artifacts:
-- command output
-- log excerpts
-- scan summaries
-- ad hoc documentation extracts
+Advisory-only behavior is not sufficient for the main goal because the model would have already consumed the bulky output.
 
-Core operations:
-- store artifact with source label, type, tags, timestamp
-- search artifacts by keyword/fts
-- prune old artifacts by TTL or size budget
+## Architecture
 
-### 2. Working-state snapshot
-Small structured state for current coding flow:
-- current task
-- active files
-- recent decisions
-- blockers
-- next step
-- optional session key / workspace
+### 1. OpenClaw plugin layer
+Acts on tool call results in the pre-injection path.
 
-Core operations:
-- write/update snapshot
-- fetch latest snapshot
-- compact render for reinjection/use after compaction
+Responsibilities:
+- inspect tool name + result payload
+- classify result as pass-through vs interceptable
+- store bulky raw output locally when interception is allowed
+- replace raw output with a compact representation
 
-### 3. Helper utilities
-Utilities for:
-- store bulky text into scratch index
-- search scratch index
-- summarize text before storage
-- extract only relevant fragments back into context
+### 2. Local scratch store
+Use SQLite + FTS5 under OpenClaw state home.
 
-### 4. Skill/policy layer
-A skill that nudges toward:
-- analyze with code first
-- prefer batching to repeated raw reads
-- store bulky temporary output locally
-- keep summaries concise
+Properties:
+- local only
+- 24h TTL
+- prune by age and optional size budget
+- scoped by workspace path and session key
 
-## Phase 2 features
+### 3. Retrieval path
+Allow targeted retrieval of stored artifacts:
+- search by session/workspace/tool/source
+- fetch slices/snippets only
+- avoid replaying entire stored blobs unless explicitly needed
 
-### 1. Context-pressure heuristics
-Heuristics to detect likely context waste:
-- large stdout/stderr
-- huge grep/read results
-- repeated scans with overlapping content
+## Safety principle
 
-### 2. Lightweight wrappers
-Convenience wrappers for noisy workflows:
-- logs
-- grep/search results
-- codebase inventory/scans
+This system should optimize **transient noisy artifacts**, not reduce review quality for exact code/text tasks.
 
-Wrappers should summarize first and offer storage in the scratch index.
+### Safe early targets
+- exec output
+- large logs
+- diagnostic dumps
+- inventories
+- repeated search/grep style outputs
+
+### Exclude initially
+- code diffs under review
+- targeted source reads for editing
+- patch/apply outputs
+- small tool outputs
+- any output where exact fidelity is the point
+
+## v0.1 interception matrix
+
+### Intercept in v0.1
+1. `exec`
+   - especially stdout/stderr heavy commands
+   - logs, diagnostics, inventories, long command output
+
+### Consider later
+2. search-heavy tool outputs
+   - only after validating fidelity and retrieval flow
+
+### Do not intercept in v0.1
+- `write`
+- `edit`
+- `apply_patch`
+- source-code `read` by default
+
+## Initial heuristics
+
+Interception candidates should meet both:
+- tool class is allowlisted
+- output exceeds threshold
+
+### Suggested thresholds
+- bytes > 32 KB
+- or lines > 800
+- or repeated bulky outputs from same tool/session within a short interval
+
+Thresholds should be configurable.
+
+## Replacement payload shape
+
+Instead of raw output, the model receives a compact payload like:
+
+- tool name
+- artifact id/reference
+- source label/command summary
+- byte count / line count
+- short structured summary
+- notable patterns (errors/warnings/headings)
+- retrieval hint
+
+Example shape:
+
+```json
+{
+  "intercepted": true,
+  "artifactId": "art_123",
+  "tool": "exec",
+  "summary": "Large command output stored locally. Contains 3 error lines, 12 warnings, and a test summary.",
+  "stats": {
+    "bytes": 81234,
+    "lines": 1542
+  },
+  "hint": "Use context-optimize retrieval to search or fetch relevant slices."
+}
+```
+
+## Storage model
+
+### Table: artifacts
+- id
+- workspace_id
+- session_key
+- tool_name
+- source_label
+- content
+- summary
+- metadata_json
+- created_at
+- expires_at
+
+### Table: artifacts_fts
+FTS5 mirror for searchable text.
+
+## Scoping
+
+Every artifact should be tagged by:
+- workspace path hash/id
+- session key when available
+- tool name
+- source label
+
+Support queries by either workspace or session or both.
+
+## Retention
+
+Default:
+- TTL: 24 hours
+- prune expired artifacts on write/startup/interval
+- optional max-db-size enforcement later
 
 ## Privacy constraints
 
-- All state local-only
-- No outbound network for version checks, telemetry, analytics, or upgrades
-- No remote APIs unless explicitly triggered by the user via existing OpenClaw tools
+- local only
+- no telemetry
+- no version phone-home
+- no auto-update behavior
+- no outbound network from this project itself
 
-## Suggested repo structure
+## Implementation plan
 
-```text
-context-optimize/
-  README.md
-  docs/
-    spec-v0.1.md
-    roadmap.md
-  src/
-    scratch/
-    snapshot/
-    heuristics/
-    utils/
-  skills/
-    context-optimize/
-  tests/
-```
+### Phase 1
+- SQLite/FTS scratch store
+- artifact schema + pruning
+- compact replacement payload contract
+- OpenClaw plugin skeleton with `exec` interception only
+- retrieval API/tooling for targeted recall
 
-## Rough implementation order
-
-1. Spec + roadmap
-2. Scratch DB module
-3. Snapshot module
-4. CLI/helpers or OpenClaw-facing integration layer
-5. Skill authoring
-6. Phase 2 heuristics
+### Phase 2
+- richer classification and summarization
+- search-heavy tool interception
+- repeated-output dedup heuristics
+- config knobs and allowlists
 
 ## Success criteria
 
-- Can store and retrieve transient bulky artifacts locally
-- Can render a small useful working-state snapshot
-- Can reduce repeated raw-output handling in coding sessions
-- No hidden network behavior
+- large exec outputs no longer flood prompt context
+- exact code review/edit flows are not degraded
+- stored artifacts are searchable and retrievable by slice
+- no hidden network behavior

@@ -1,18 +1,21 @@
 # Roadmap
 
 ## v0.1
-- Project scaffold
-- Scratch index MVP
-- Snapshot MVP
-- Utility layer MVP
-- Skill draft
+- Tool-result interception only
+- OpenClaw plugin skeleton
+- SQLite + FTS5 scratch store
+- `exec` bulky-output interception
+- local artifact search/fetch path
+- 24h pruning
 
 ## v0.2
-- Context-pressure heuristics
-- Noisy-workflow wrappers
-- Better pruning and ranking
+- search-heavy tool interception
+- better summarization/classification
+- repeated-output dedup
+- configurable thresholds and allowlists
 
-## Later
-- Optional deeper OpenClaw integration
-- Better compaction-aware restore hooks
-- Workspace-specific policies
+## Explicitly not in scope for now
+- user/assistant text interception
+- duplicate work-state snapshot system
+- broad source-code read interception
+- telemetry, version checks, auto-update

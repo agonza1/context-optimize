@@ -1,34 +1,45 @@
 # context-optimize
 
-Local-first context pressure reduction for OpenClaw.
+OpenClaw-native pre-injection interception for bulky tool outputs.
 
-## Goals
+## What it is
 
-- Keep bulky transient outputs out of prompt context when possible
-- Store/search large temporary artifacts locally
-- Preserve compact working-state snapshots across compaction
-- Encourage code-first analysis instead of raw-output reasoning
+`context-optimize` is a local-first project focused on one problem:
 
-## Principles
+- intercept large **tool call outputs** before they are injected into model context
+- store raw bulky output locally
+- pass only compact summaries and retrieval handles to the model
 
-- Local-first
+## What it is not
+
+- not a clone of context-mode
+- not a durable memory system
+- not a replacement for OpenClaw session continuity
+- not a general interception layer for all prompt content
+
+## Initial scope
+
+### v0.1
+- Tool-result interception only
+- OpenClaw plugin approach
+- SQLite + FTS5 scratch store
+- `exec` bulky-output interception first
+- retrieval of stored artifacts by targeted search/slice
+- 24h retention
+
+### v0.2
+- search-heavy tool interception
+- better classification and summarization
+- repeated-output dedup heuristics
+
+## Design constraints
+
+- Local only
 - No telemetry
 - No auto-update
-- No external fetch unless explicitly invoked
-- OpenClaw-native, not a clone of upstream tools
-
-## Initial Scope
-
-### Phase 1
-- Scratch SQLite/FTS store for transient artifacts
-- Working-state snapshot store
-- Helper utilities for store/search/summarize
-- Skill guidance for code-first analysis
-
-### Phase 2
-- Context-pressure heuristics
-- Lightweight wrappers for noisy workflows
+- No outbound network from this project
+- Preserve exact fidelity for code-review/edit flows
 
 ## Status
 
-Scaffolding in progress.
+Planning locked around pre-injection tool-call interception.
