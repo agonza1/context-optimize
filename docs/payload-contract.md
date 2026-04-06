@@ -4,47 +4,48 @@
 
 When a bulky tool result is intercepted, the model should receive a compact payload that preserves usefulness while avoiding raw blob injection.
 
+## Runtime-informed constraint
+
+OpenClaw appears to derive tool-result text from text-bearing entries in `message.content`.
+
+So the safest v0.1 replacement strategy is:
+- keep the tool-result message envelope
+- replace bulky raw text in `content` with one compact text block
+- preserve existing IDs / role / error metadata where possible
+
 ## v0.1 payload fields
 
-- `intercepted`: boolean
-- `artifactId`: string
-- `tool`: string
-- `source`: string
-- `stats.bytes`: number
-- `stats.lines`: number
-- `summary`: string
-- `highlights`: string[]
-- `retrievalHint`: string
+Represent these fields inside the compact replacement text:
+- interception marker
+- `artifactId`
+- `tool`
+- `source`
+- `bytes`
+- `lines`
+- `summary`
+- `highlights`
+- retrieval hint
 
-## Example object
+## Example text payload
 
-```json
-{
-  "intercepted": true,
-  "artifactId": "art_01HXYZ...",
-  "tool": "exec",
-  "source": "npm test",
-  "stats": {
-    "bytes": 81234,
-    "lines": 1542
-  },
-  "summary": "Large exec output stored locally. Test run completed with 3 failures and 12 warnings.",
-  "highlights": [
-    "3 failing tests detected",
-    "12 warning lines detected",
-    "JUnit summary present"
-  ],
-  "retrievalHint": "Use context-optimize retrieval to search or fetch relevant slices by artifactId."
-}
+```text
+[context-optimize intercepted tool output]
+artifactId: art_01HXYZ...
+tool: exec
+source: npm test
+bytes: 81234
+lines: 1542
+summary: Large exec output stored locally. Test run completed with 3 failures and 12 warnings.
+highlights:
+- 3 failing tests detected
+- 12 warning lines detected
+- JUnit summary present
+retrieval: Use context-optimize retrieval to search or fetch relevant slices by artifactId.
 ```
 
-## Rendering guidance
+## Why plain text first
 
-For v0.1, output can be injected either as:
-- compact JSON string, or
-- concise plain-text structured block
-
-Prefer the format that best fits OpenClaw tool-result injection semantics.
+For v0.1, compact text content is the lowest-risk replacement because OpenClaw already extracts tool-result text from content blocks. This avoids depending on any deeper structured-content assumptions before we test a live plugin fixture.
 
 ## Summary constraints
 

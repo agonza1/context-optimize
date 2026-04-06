@@ -35,6 +35,21 @@ Signature:
 
 This is the required mutation point for v0.1.
 
+## Runtime confirmation
+
+OpenClaw's runtime wraps session persistence with:
+- `transformToolResultForPersistence`
+- this calls `hookRunner.runToolResultPersist(...)`
+- the returned `message` replaces the original tool-result message for persistence
+
+The runtime also exposes helper behavior that extracts tool-result text from:
+- `result.content`
+- text content blocks inside that content array
+
+That strongly suggests the safe v0.1 rewrite target is:
+- preserve tool-result message role/identity metadata
+- replace bulky text-bearing `content` with compact text content blocks
+
 ## v0.1 interception flow
 
 ### Step 1
@@ -53,7 +68,14 @@ If payload is below threshold, pass through unchanged.
 If payload is bulky and interceptable:
 - persist raw content to local artifact store
 - build compact replacement payload
-- return a modified `AgentMessage` containing the compact payload instead of raw output
+- return a modified `AgentMessage` containing compact text content instead of raw output
+
+## v0.1 rewrite rule
+
+Preferred rewrite strategy:
+- keep message envelope fields unchanged when possible
+- replace only the text-bearing tool-result `content`
+- avoid altering tool-call IDs or error flags unless necessary
 
 ## Why this is the right hook
 
@@ -66,8 +88,6 @@ This happens before the bulky raw output becomes durable session transcript cont
 - intercepting assistant freeform replies
 - broad source-code read rewriting
 
-## Implementation note
+## Remaining implementation unknown
 
-We need to inspect actual `AgentMessage` tool-result shape in OpenClaw runtime to implement the message rewrite safely.
-
-That becomes the next code-level validation step.
+We have enough confirmation to proceed, but during coding we should still inspect one real `tool_result_persist` message shape from a live plugin test and snapshot it in fixtures/tests.
