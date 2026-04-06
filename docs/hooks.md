@@ -1,44 +1,73 @@
 # OpenClaw hook plan
 
-## Desired interception point
+## Confirmed mutation path
 
-We need interception after tool execution but before the result is assembled into model context.
+OpenClaw's plugin SDK exposes:
 
-## Candidate hook strategy
+- `after_tool_call`: observe-only
+- `tool_result_persist`: **mutable**
 
-### 1. `after_tool_call`
-Use to inspect completed tool results and persist bulky raw output.
+This means the correct v0.1 interception strategy is:
 
-Responsibilities:
-- inspect tool name
-- inspect `result` / `output`
-- decide if interceptable
-- write artifact to local store
-- compute replacement payload
+1. use `after_tool_call` for optional metrics/debug capture if useful
+2. use `tool_result_persist` to replace the tool-result message before it is persisted into the transcript / session history
 
-### 2. result replacement mechanism
-Implementation detail depends on exact OpenClaw hook semantics available in the current plugin API.
+That is the critical hook for token-saving interception.
 
-The required capability is:
-- replace or mutate tool result before it is added to prompt context
+## Relevant SDK semantics
 
-If OpenClaw allows direct after-tool result mutation, use that.
-If not, use the nearest supported pre-prompt transformation path for tool result content.
+### `after_tool_call`
+Signature:
+- receives tool name, params, result, error, duration
+- returns `void`
 
-## v0.1 required hook behaviors
+Use for:
+- diagnostics
+- metrics
+- optional side capture
 
-- observe tool result
-- store raw result
-- replace injected result with compact payload
-- preserve metadata needed for debugging
+Do not rely on it for output mutation.
 
-## Non-goals for v0.1
+### `tool_result_persist`
+Signature:
+- receives the `AgentMessage` that is about to be written
+- may return `{ message?: AgentMessage }`
 
-- command blocking
-- rewriting tool inputs
-- generic prompt interception
-- message/user text rewriting
+This is the required mutation point for v0.1.
 
-## Compatibility note
+## v0.1 interception flow
 
-Implementation should be written against current OpenClaw plugin APIs and verified against the running version in this workspace.
+### Step 1
+Inspect tool result via `tool_result_persist`.
+
+### Step 2
+If tool is not `exec`, pass through unchanged.
+
+### Step 3
+Extract text payload from the pending tool-result message.
+
+### Step 4
+If payload is below threshold, pass through unchanged.
+
+### Step 5
+If payload is bulky and interceptable:
+- persist raw content to local artifact store
+- build compact replacement payload
+- return a modified `AgentMessage` containing the compact payload instead of raw output
+
+## Why this is the right hook
+
+This happens before the bulky raw output becomes durable session transcript content and before it can continue bloating later context assembly.
+
+## v0.1 non-goals
+
+- blocking or rewriting tool inputs
+- intercepting user text
+- intercepting assistant freeform replies
+- broad source-code read rewriting
+
+## Implementation note
+
+We need to inspect actual `AgentMessage` tool-result shape in OpenClaw runtime to implement the message rewrite safely.
+
+That becomes the next code-level validation step.

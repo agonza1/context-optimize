@@ -1,7 +1,9 @@
 # Implementation checklist
 
 ## Plugin / hook layer
-- [ ] Verify exact OpenClaw plugin API for post-tool-result mutation
+- [x] Verify exact OpenClaw plugin API for post-tool-result mutation
+- [x] Confirm `tool_result_persist` is the v0.1 mutation hook
+- [ ] Inspect actual `AgentMessage` tool-result shape in runtime
 - [ ] Implement plugin skeleton
 - [ ] Handle `exec` result inspection
 - [ ] Replace bulky output with compact payload
