@@ -29,6 +29,20 @@ Intercept bulky tool outputs before they reach the model context, store them loc
 - `apply_patch`
 - all other tools until explicitly reviewed
 
+## Next scope after v0.1
+
+### Likely next targets
+- search-heavy outputs that behave like inventories or grep dumps
+- bulky structured results where retrieval-first is better than blind replay
+
+### Separate future lane: think on code
+This should be implemented as a code-aware retrieval/summarization path with stricter fidelity rules than generic context compression.
+
+Principles:
+- understand code structure without repeatedly replaying full source blobs
+- preserve exact source retrieval for editing
+- keep diffs, patches, and line-precise review flows out of aggressive compression paths
+
 ## Why `exec` first
 
 `exec` is the highest-value/lowest-ambiguity source of context bloat:

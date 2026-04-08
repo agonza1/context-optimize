@@ -84,12 +84,16 @@ This system should optimize **transient noisy artifacts**, not reduce review qua
 ### Consider later
 2. search-heavy tool outputs
    - only after validating fidelity and retrieval flow
+   - especially bulky grep/search/inventory style outputs where exact replay is rarely needed every turn
+3. selective code-understanding flows
+   - a future "think on code" lane should help with code comprehension without degrading exact-fidelity editing and review
 
 ### Do not intercept in v0.1
 - `write`
 - `edit`
 - `apply_patch`
 - source-code `read` by default
+- diffs/patches or exact code-review payloads
 
 ## Initial heuristics
 

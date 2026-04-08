@@ -4,17 +4,17 @@
 - [x] Verify exact OpenClaw plugin API for post-tool-result mutation
 - [x] Confirm `tool_result_persist` is the v0.1 mutation hook
 - [ ] Inspect actual `AgentMessage` tool-result shape in runtime
-- [ ] Implement plugin skeleton
-- [ ] Handle `exec` result inspection
-- [ ] Replace bulky output with compact payload
-- [ ] Fail open on plugin errors
+- [x] Implement plugin skeleton
+- [x] Handle `exec` result inspection
+- [x] Replace bulky output with compact payload
+- [x] Fail open on plugin errors
 
 ## Storage
-- [ ] Implement SQLite connection/bootstrap
-- [ ] Create schema + indexes
-- [ ] Implement artifact insert
-- [ ] Implement prune expired artifacts
-- [ ] Implement workspace/session scoping helpers
+- [x] Implement SQLite connection/bootstrap
+- [x] Create schema + indexes
+- [x] Implement artifact insert
+- [x] Implement prune expired artifacts
+- [x] Implement workspace/session scoping helpers
 
 ## Classification / summarization
 - [ ] Implement `exec` thresholds
@@ -28,8 +28,8 @@
 - [ ] Implement latest-artifacts query
 
 ## Validation
-- [ ] Test small exec output pass-through
-- [ ] Test bulky exec output interception
+- [x] Test small exec output pass-through
+- [x] Test bulky exec output interception
 - [ ] Test storage/retrieval roundtrip
-- [ ] Test exclusion/fail-open behavior
-- [ ] Confirm no network behavior
+- [x] Test exclusion/fail-open behavior
+- [x] Confirm no network behavior
