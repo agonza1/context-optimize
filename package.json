@@ -3,9 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Local-first context pressure reduction for OpenClaw",
+  "description": "Local-first context pressure reduction plugin for OpenClaw",
   "scripts": {
     "test": "node --test"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./plugin": "./src/plugin/runtime.js"
+  },
+  "main": "./src/plugin/runtime.js",
+  "openclaw": {
+    "id": "context-optimize",
+    "entry": "./src/plugin/runtime.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0"

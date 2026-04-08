@@ -40,8 +40,7 @@ export function searchArtifacts(db, query, options = {}) {
 export function latestArtifacts(db, options = {}) {
   const { workspaceId, sessionKey, toolName = 'exec', limit = 5 } = options;
 
-  const results = searchArtifacts(db, null, { workspaceId, sessionKey, toolName, limit });
-  return results.reverse();
+  return searchArtifacts(db, null, { workspaceId, sessionKey, toolName, limit });
 }
 
 export function fetchArtifact(db, artifactId) {

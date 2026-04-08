@@ -25,6 +25,7 @@ test('retrieval: latestArtifacts returns recent artifacts', () => {
     summary: 'test',
     bytes: 100,
     lines: 3,
+    createdAt: '2026-04-08T10:00:00.000Z',
   });
 
   const artifact2 = store.insertArtifact({
@@ -37,6 +38,7 @@ test('retrieval: latestArtifacts returns recent artifacts', () => {
     summary: 'test 2',
     bytes: 150,
     lines: 2,
+    createdAt: '2026-04-08T10:01:00.000Z',
   });
 
   const latest = latestArtifacts(store.db, {

@@ -153,10 +153,10 @@ export function guessFormat(text) {
   const firstLine = sample.split('\n')[0];
 
   if (sample.includes('---') || /^#+ /.test(sample)) return 'markdown';
-  if (/\[ERROR\]|\[WARNING\]|error|failed|fatal|exception/i.test(sample)) return 'error-log';
   if (/✔|✖|passed|failed/i.test(sample)) return 'test-output';
-  if (firstLine.includes(':') && !firstLine.includes('{') && !sample.includes('\n\n')) return 'grep';
-  if (/\{.*\}/.test(sample) && /[\[\]{}]/.test(sample)) return 'json';
+  if (/\[ERROR\]|\[WARNING\]|error|failed|fatal|exception/i.test(sample)) return 'error-log';
+  if (/^[^\n]+:.+$/.test(firstLine) && !firstLine.trim().startsWith('{')) return 'grep';
+  if ((firstLine.trim().startsWith('{') || firstLine.trim().startsWith('[')) && /[\[\]{}]/.test(sample)) return 'json';
 
   return 'text';
 }
