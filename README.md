@@ -136,6 +136,18 @@ When thresholds are exceeded, it:
 - replaces the persisted tool result with a compact summary payload
 - preserves a retrieval handle (`artifactId`) for follow-up inspection
 
+### Retrieval via memory engine
+
+The plugin registers a `MemoryCorpusSupplement` so stored artifacts are accessible
+through the standard `memory_search` and `memory_get` tools that agents already use:
+
+- `memory_search corpus="artifacts"` — full-text search across stored artifacts
+- `memory_get corpus="artifacts" lookup="<artifactId>"` — fetch raw content by ID
+
+A prompt supplement is also registered so agents are informed when artifacts are
+available. No custom tools are needed — retrieval works through OpenClaw's existing
+memory infrastructure.
+
 ### 5. Default storage
 
 By default, runtime storage goes to:

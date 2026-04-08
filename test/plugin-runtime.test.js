@@ -39,9 +39,10 @@ test('resolvePluginConfig maps pluginConfig to runtime options', () => {
   });
 });
 
-test('registerContextOptimizePlugin wires hook and registers retrieval tool', () => {
+test('registerContextOptimizePlugin wires hook and memory supplements', () => {
   const hookCalls = [];
-  const toolCalls = [];
+  const corpusSupplements = [];
+  const promptSupplements = [];
   const tempDir = makeTempDir();
 
   const api = {
@@ -53,8 +54,11 @@ test('registerContextOptimizePlugin wires hook and registers retrieval tool', ()
     on(hookName, handler, opts) {
       hookCalls.push({ hookName, handler, opts });
     },
-    registerTool(tool, opts) {
-      toolCalls.push({ tool, opts });
+    registerMemoryCorpusSupplement(supplement) {
+      corpusSupplements.push(supplement);
+    },
+    registerMemoryPromptSupplement(builder) {
+      promptSupplements.push(builder);
     },
     logger: {
       info() {},
@@ -66,10 +70,12 @@ test('registerContextOptimizePlugin wires hook and registers retrieval tool', ()
   assert.equal(hookCalls.length, 1);
   assert.equal(hookCalls[0].hookName, 'tool_result_persist');
 
-  assert.equal(toolCalls.length, 1);
-  assert.equal(toolCalls[0].tool.name, 'artifact_retrieve');
-  assert.equal(toolCalls[0].opts.optional, true);
-  assert.equal(typeof toolCalls[0].tool.execute, 'function');
+  assert.equal(corpusSupplements.length, 1);
+  assert.equal(typeof corpusSupplements[0].search, 'function');
+  assert.equal(typeof corpusSupplements[0].get, 'function');
+
+  assert.equal(promptSupplements.length, 1);
+  assert.equal(typeof promptSupplements[0], 'function');
 
   const result = hookCalls[0].handler(
     {
@@ -86,12 +92,12 @@ test('registerContextOptimizePlugin wires hook and registers retrieval tool', ()
 
   assert.ok(result?.message);
   assert.match(result.message.content[0].text, /context-optimize intercepted tool output/);
-  assert.match(result.message.content[0].text, /artifact_retrieve/);
+  assert.match(result.message.content[0].text, /memory_get/);
 });
 
-test('artifact_retrieve tool can fetch stored artifacts', async () => {
+test('memory corpus supplement search and get work against stored artifacts', async () => {
   const tempDir = makeTempDir();
-  let registeredTool = null;
+  let corpusSupplement = null;
   let hookHandler = null;
 
   const api = {
@@ -103,9 +109,10 @@ test('artifact_retrieve tool can fetch stored artifacts', async () => {
     on(_hookName, handler) {
       hookHandler = handler;
     },
-    registerTool(tool) {
-      registeredTool = tool;
+    registerMemoryCorpusSupplement(supplement) {
+      corpusSupplement = supplement;
     },
+    registerMemoryPromptSupplement() {},
     logger: {
       info() {},
     },
@@ -127,14 +134,72 @@ test('artifact_retrieve tool can fetch stored artifacts', async () => {
   assert.ok(artifactIdMatch, 'placeholder should contain artifactId');
   const artifactId = artifactIdMatch[1];
 
-  const fetchResult = await registeredTool.execute('call-1', { artifactId });
-  assert.ok(fetchResult.content[0].text.includes('line1'));
-  assert.ok(fetchResult.content[0].text.includes('error on line3'));
-  assert.equal(fetchResult.details.found, true);
+  const getResult = await corpusSupplement.get({ lookup: artifactId });
+  assert.ok(getResult);
+  assert.equal(getResult.corpus, 'artifacts');
+  assert.equal(getResult.id, artifactId);
+  assert.ok(getResult.content.includes('line1'));
+  assert.ok(getResult.content.includes('error on line3'));
 
-  const keywordResult = await registeredTool.execute('call-2', { artifactId, keyword: 'error' });
-  assert.ok(keywordResult.content[0].text.includes('error on line3'));
+  const getSlice = await corpusSupplement.get({ lookup: artifactId, fromLine: 3, lineCount: 1 });
+  assert.ok(getSlice);
+  assert.ok(getSlice.content.includes('error on line3'));
+  assert.equal(getSlice.fromLine, 3);
 
-  const searchResult = await registeredTool.execute('call-3', { search: 'error' });
-  assert.ok(searchResult.content[0].text.includes(artifactId));
+  const searchResults = await corpusSupplement.search({ query: 'error' });
+  assert.ok(searchResults.length > 0);
+  assert.equal(searchResults[0].corpus, 'artifacts');
+  assert.equal(searchResults[0].id, artifactId);
+
+  const emptySearch = await corpusSupplement.search({ query: 'nonexistent_xyz_abc' });
+  assert.equal(emptySearch.length, 0);
+
+  const missingGet = await corpusSupplement.get({ lookup: 'art_does_not_exist' });
+  assert.equal(missingGet, null);
+});
+
+test('memory prompt supplement returns guidance when artifacts exist', () => {
+  const tempDir = makeTempDir();
+  let promptBuilder = null;
+  let hookHandler = null;
+
+  const api = {
+    pluginConfig: {
+      stateDir: tempDir,
+      byteThreshold: 32,
+      lineThreshold: 3,
+    },
+    on(_hookName, handler) {
+      hookHandler = handler;
+    },
+    registerMemoryCorpusSupplement() {},
+    registerMemoryPromptSupplement(builder) {
+      promptBuilder = builder;
+    },
+    logger: {
+      info() {},
+    },
+  };
+
+  registerContextOptimizePlugin(api);
+
+  const emptyResult = promptBuilder({ availableTools: new Set(['memory_search', 'memory_get']) });
+  assert.deepEqual(emptyResult, []);
+
+  hookHandler(
+    {
+      toolName: 'exec',
+      message: {
+        content: [{ type: 'text', text: 'error\nerror\nerror\nerror\n' }],
+      },
+    },
+    { sessionKey: 'test-session', workspacePath: '/test' },
+  );
+
+  const withArtifacts = promptBuilder({ availableTools: new Set(['memory_search', 'memory_get']) });
+  assert.ok(withArtifacts.length > 0);
+  assert.ok(withArtifacts.some((line) => line.includes('memory_search')));
+
+  const noTools = promptBuilder({ availableTools: new Set() });
+  assert.deepEqual(noTools, []);
 });

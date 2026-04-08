@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { createPlugin, createStore } from '../index.js';
-import { createArtifactRetrieveTool } from './artifact-tool.js';
+import { createArtifactCorpusSupplement, createArtifactPromptSupplement } from './memory-supplement.js';
 
 function definePluginEntry(entry) {
   return {
@@ -40,8 +40,9 @@ export function registerContextOptimizePlugin(api) {
   const store = createStore(cfg.storageRootDir);
   const plugin = createPlugin({ ...cfg, store });
 
-  api.registerTool(createArtifactRetrieveTool(store), { name: 'artifact_retrieve', optional: true });
-  api.logger?.info?.('[context-optimize] registered artifact_retrieve tool');
+  api.registerMemoryCorpusSupplement(createArtifactCorpusSupplement(store));
+  api.registerMemoryPromptSupplement(createArtifactPromptSupplement(store));
+  api.logger?.info?.('[context-optimize] registered memory corpus + prompt supplements');
 
   api.on(
     'tool_result_persist',

@@ -89,7 +89,7 @@ export function buildPlaceholderPayload({ artifactId, bytes, lines, source = 'ex
     `bytes: ${bytes}`,
     `lines: ${lines}`,
     `summary: ${summary || 'Large exec output stored locally.'}`,
-    `retrieval: Use artifact_retrieve with artifactId="${artifactId}" to fetch the raw content. Add keyword="<term>" to focus on specific lines.`,
+    `retrieval: Use memory_get with corpus="artifacts" lookup="${artifactId}" to fetch raw content. Use memory_search with corpus="artifacts" to find artifacts by content.`,
   ];
 
   return parts.join('\n');
