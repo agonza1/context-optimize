@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { createPlugin, createStore } from '../index.js';
+import { createPlugin, createStore, DEFAULT_INTERCEPTED_TOOLS } from '../index.js';
 import { createArtifactCorpusSupplement, createArtifactPromptSupplement } from './memory-supplement.js';
 
 function definePluginEntry(entry) {
@@ -24,7 +24,8 @@ export function resolvePluginConfig(api) {
     ttlHours: Number(pluginConfig.ttlHours ?? 24),
     maxBytes: Number(pluginConfig.byteThreshold ?? 32 * 1024),
     maxLines: Number(pluginConfig.lineThreshold ?? 800),
-    source: pluginConfig.source || 'exec',
+    interceptedTools: pluginConfig.tools || DEFAULT_INTERCEPTED_TOOLS,
+    source: pluginConfig.source || null,
   };
 }
 

@@ -45,26 +45,34 @@ export function countBytes(text) {
   return Buffer.byteLength(text || '', 'utf8');
 }
 
-export function isExecToolMessage(message, overrideToolName) {
-  if (overrideToolName === 'exec') return true;
-  if (!message || typeof message !== 'object') return false;
+export const DEFAULT_INTERCEPTED_TOOLS = ['exec', 'read'];
 
-  if (message.toolName === 'exec') return true;
-  if (message.name === 'exec') return true;
-  if (message.tool === 'exec') return true;
+export function resolveToolName(message, overrideToolName) {
+  if (overrideToolName) return overrideToolName;
+  if (!message || typeof message !== 'object') return null;
+
+  if (message.toolName) return message.toolName;
+  if (message.name) return message.name;
+  if (message.tool) return message.tool;
 
   const metaCandidates = [message.metadata, message.meta];
   for (const meta of metaCandidates) {
     if (!meta || typeof meta !== 'object') continue;
-    if (meta.toolName === 'exec' || meta.name === 'exec' || meta.tool === 'exec') {
-      return true;
-    }
+    if (meta.toolName) return meta.toolName;
+    if (meta.name) return meta.name;
+    if (meta.tool) return meta.tool;
   }
 
-  return false;
+  return null;
 }
 
-export function shouldInterceptExecText(text, options = {}) {
+export function isInterceptableToolMessage(message, overrideToolName, interceptedTools) {
+  const tools = interceptedTools || DEFAULT_INTERCEPTED_TOOLS;
+  const resolved = resolveToolName(message, overrideToolName);
+  return resolved ? tools.includes(resolved) : false;
+}
+
+export function shouldInterceptText(text, options = {}) {
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   const maxLines = options.maxLines ?? DEFAULT_MAX_LINES;
 
@@ -80,15 +88,16 @@ export function shouldInterceptExecText(text, options = {}) {
   };
 }
 
-export function buildPlaceholderPayload({ artifactId, bytes, lines, source = 'exec', summary }) {
+export function buildPlaceholderPayload({ artifactId, toolName, bytes, lines, source, summary }) {
+  const label = toolName || source || 'tool';
   const parts = [
     '[context-optimize intercepted tool output]',
     `artifactId: ${artifactId}`,
-    'tool: exec',
-    `source: ${source}`,
+    `tool: ${label}`,
+    `source: ${source || label}`,
     `bytes: ${bytes}`,
     `lines: ${lines}`,
-    `summary: ${summary || 'Large exec output stored locally.'}`,
+    `summary: ${summary || 'Large tool output stored locally.'}`,
     `retrieval: Use memory_get with corpus="artifacts" lookup="${artifactId}" to fetch raw content. Use memory_search with corpus="artifacts" to find artifacts by content.`,
   ];
 
@@ -113,7 +122,7 @@ export function makeArtifactId() {
   return `art_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function summarizeExecText(text) {
+export function summarizeText(text) {
   const lines = (text || '').split(/\r?\n/);
   let errorCount = 0;
   let warningCount = 0;
@@ -131,26 +140,28 @@ export function summarizeExecText(text) {
   if (failCount) signals.push(`${failCount} fail lines`);
 
   if (!signals.length) {
-    return 'Large exec output intercepted due to size threshold.';
+    return 'Large tool output intercepted due to size threshold.';
   }
 
-  return `Large exec output intercepted. Detected ${signals.join(', ')}.`;
+  return `Large tool output intercepted. Detected ${signals.join(', ')}.`;
 }
 
 export function interceptToolResultMessage(message, options = {}) {
-  if (!isExecToolMessage(message, options.toolName)) {
+  const toolName = resolveToolName(message, options.toolName);
+
+  if (!isInterceptableToolMessage(message, options.toolName, options.interceptedTools)) {
     return { intercepted: false, message };
   }
 
   const text = extractTextFromContent(message.content);
-  const decision = shouldInterceptExecText(text, options);
+  const decision = shouldInterceptText(text, options);
 
   if (!decision.intercept) {
     return { intercepted: false, message, stats: decision };
   }
 
   const artifactId = makeArtifactId();
-  const summary = summarizeExecText(text);
+  const summary = summarizeText(text);
 
   let persistedArtifact = null;
   if (options.storeArtifact) {
@@ -159,8 +170,8 @@ export function interceptToolResultMessage(message, options = {}) {
       workspaceId: workspaceIdFor(options.workspacePath || ''),
       workspacePath: options.workspacePath || null,
       sessionKey: options.sessionKey || null,
-      toolName: 'exec',
-      sourceLabel: options.source || 'exec',
+      toolName: toolName || 'unknown',
+      sourceLabel: options.source || toolName || 'unknown',
       commandText: options.commandText || null,
       content: text,
       summary,
@@ -173,9 +184,10 @@ export function interceptToolResultMessage(message, options = {}) {
 
   const payload = buildPlaceholderPayload({
     artifactId,
+    toolName,
     bytes: decision.bytes,
     lines: decision.lines,
-    source: options.source || 'exec',
+    source: options.source || toolName,
     summary,
   });
 

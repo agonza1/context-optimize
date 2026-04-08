@@ -153,8 +153,10 @@ memory infrastructure.
 By default, runtime storage goes to:
 
 ```text
-$PWD/.context-optimize
+<plugin-root>/.context-optimize
 ```
+
+When loaded by OpenClaw, `<plugin-root>` is the plugin directory (via `api.rootDir`).
 
 You can override that through plugin config, for example with:
 

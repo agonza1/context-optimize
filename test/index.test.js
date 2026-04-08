@@ -9,7 +9,7 @@ import {
   createStore,
   extractTextFromContent,
   interceptToolResultMessage,
-  shouldInterceptExecText,
+  shouldInterceptText,
 } from '../src/index.js';
 
 function makeTempDir() {
@@ -25,14 +25,14 @@ test('extractTextFromContent joins text blocks', () => {
   assert.equal(text, 'hello\nworld');
 });
 
-test('shouldInterceptExecText stays false for small output', () => {
-  const result = shouldInterceptExecText('small output');
+test('shouldInterceptText stays false for small output', () => {
+  const result = shouldInterceptText('small output');
   assert.equal(result.intercept, false);
 });
 
-test('interceptToolResultMessage leaves non-exec messages alone', () => {
+test('interceptToolResultMessage skips tools not in the intercepted list', () => {
   const message = {
-    toolName: 'read',
+    toolName: 'web_search',
     content: [{ type: 'text', text: 'x'.repeat(40000) }],
   };
 
@@ -49,8 +49,20 @@ test('interceptToolResultMessage rewrites bulky exec output', () => {
   const result = interceptToolResultMessage(message);
   assert.equal(result.intercepted, true);
   assert.match(result.message.content[0].text, /context-optimize intercepted tool output/);
+  assert.match(result.message.content[0].text, /tool: exec/);
   assert.match(result.message.content[0].text, /artifactId:/);
   assert.match(result.message.content[0].text, /error lines/);
+});
+
+test('interceptToolResultMessage rewrites bulky read output', () => {
+  const message = {
+    toolName: 'read',
+    content: [{ type: 'text', text: 'x'.repeat(40000) }],
+  };
+
+  const result = interceptToolResultMessage(message);
+  assert.equal(result.intercepted, true);
+  assert.match(result.message.content[0].text, /tool: read/);
 });
 
 test('createStore persists intercepted artifacts', () => {
