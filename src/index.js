@@ -88,8 +88,8 @@ export function buildPlaceholderPayload({ artifactId, bytes, lines, source = 'ex
     `source: ${source}`,
     `bytes: ${bytes}`,
     `lines: ${lines}`,
-    `summary: ${summary || 'Large exec output stored locally or pending storage implementation.'}`,
-    'retrieval: Retrieval path not implemented yet in v0.1 thin slice.',
+    `summary: ${summary || 'Large exec output stored locally.'}`,
+    `retrieval: Use artifact_retrieve with artifactId="${artifactId}" to fetch the raw content. Add keyword="<term>" to focus on specific lines.`,
   ];
 
   return parts.join('\n');

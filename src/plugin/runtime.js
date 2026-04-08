@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { createPlugin } from '../index.js';
+import { createPlugin, createStore } from '../index.js';
+import { createArtifactRetrieveTool } from './artifact-tool.js';
 
 function definePluginEntry(entry) {
   return {
@@ -36,7 +37,11 @@ export function registerContextOptimizePlugin(api) {
 
   api.logger?.info?.(`[context-optimize] register called, stateDir=${cfg.storageRootDir}, maxBytes=${cfg.maxBytes}, maxLines=${cfg.maxLines}`);
 
-  const plugin = createPlugin(cfg);
+  const store = createStore(cfg.storageRootDir);
+  const plugin = createPlugin({ ...cfg, store });
+
+  api.registerTool(createArtifactRetrieveTool(store), { name: 'artifact_retrieve', optional: true });
+  api.logger?.info?.('[context-optimize] registered artifact_retrieve tool');
 
   api.on(
     'tool_result_persist',

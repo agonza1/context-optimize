@@ -39,8 +39,9 @@ test('resolvePluginConfig maps pluginConfig to runtime options', () => {
   });
 });
 
-test('registerContextOptimizePlugin wires tool_result_persist hook via api.on', async () => {
-  const calls = [];
+test('registerContextOptimizePlugin wires hook and registers retrieval tool', () => {
+  const hookCalls = [];
+  const toolCalls = [];
   const tempDir = makeTempDir();
 
   const api = {
@@ -50,7 +51,10 @@ test('registerContextOptimizePlugin wires tool_result_persist hook via api.on', 
       lineThreshold: 3,
     },
     on(hookName, handler, opts) {
-      calls.push({ hookName, handler, opts });
+      hookCalls.push({ hookName, handler, opts });
+    },
+    registerTool(tool, opts) {
+      toolCalls.push({ tool, opts });
     },
     logger: {
       info() {},
@@ -59,10 +63,15 @@ test('registerContextOptimizePlugin wires tool_result_persist hook via api.on', 
 
   registerContextOptimizePlugin(api);
 
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].hookName, 'tool_result_persist');
+  assert.equal(hookCalls.length, 1);
+  assert.equal(hookCalls[0].hookName, 'tool_result_persist');
 
-  const result = calls[0].handler(
+  assert.equal(toolCalls.length, 1);
+  assert.equal(toolCalls[0].tool.name, 'artifact_retrieve');
+  assert.equal(toolCalls[0].opts.optional, true);
+  assert.equal(typeof toolCalls[0].tool.execute, 'function');
+
+  const result = hookCalls[0].handler(
     {
       toolName: 'exec',
       message: {
@@ -77,4 +86,55 @@ test('registerContextOptimizePlugin wires tool_result_persist hook via api.on', 
 
   assert.ok(result?.message);
   assert.match(result.message.content[0].text, /context-optimize intercepted tool output/);
+  assert.match(result.message.content[0].text, /artifact_retrieve/);
+});
+
+test('artifact_retrieve tool can fetch stored artifacts', async () => {
+  const tempDir = makeTempDir();
+  let registeredTool = null;
+  let hookHandler = null;
+
+  const api = {
+    pluginConfig: {
+      stateDir: tempDir,
+      byteThreshold: 32,
+      lineThreshold: 3,
+    },
+    on(_hookName, handler) {
+      hookHandler = handler;
+    },
+    registerTool(tool) {
+      registeredTool = tool;
+    },
+    logger: {
+      info() {},
+    },
+  };
+
+  registerContextOptimizePlugin(api);
+
+  const hookResult = hookHandler(
+    {
+      toolName: 'exec',
+      message: {
+        content: [{ type: 'text', text: 'line1\nline2\nerror on line3\nline4\n' }],
+      },
+    },
+    { sessionKey: 'test-session', workspacePath: '/test' },
+  );
+
+  const artifactIdMatch = hookResult.message.content[0].text.match(/artifactId: (art_\w+)/);
+  assert.ok(artifactIdMatch, 'placeholder should contain artifactId');
+  const artifactId = artifactIdMatch[1];
+
+  const fetchResult = await registeredTool.execute('call-1', { artifactId });
+  assert.ok(fetchResult.content[0].text.includes('line1'));
+  assert.ok(fetchResult.content[0].text.includes('error on line3'));
+  assert.equal(fetchResult.details.found, true);
+
+  const keywordResult = await registeredTool.execute('call-2', { artifactId, keyword: 'error' });
+  assert.ok(keywordResult.content[0].text.includes('error on line3'));
+
+  const searchResult = await registeredTool.execute('call-3', { search: 'error' });
+  assert.ok(searchResult.content[0].text.includes(artifactId));
 });
