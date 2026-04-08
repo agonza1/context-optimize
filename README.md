@@ -10,11 +10,45 @@ OpenClaw-native pre-injection interception for bulky tool outputs.
 - store raw bulky output locally
 - pass only compact summaries and retrieval handles to the model
 
+## Where it fits in the OpenClaw stack
+
+OpenClaw already ships several layers that manage context size and agent memory.
+context-optimize is not a replacement for any of them — it fills a specific gap none of them cover.
+
+```
+exec produces large output
+  │
+  ├─ context-optimize ──→ Intercepts at persist time, before the blob
+  │                        enters the transcript. Stores raw in SQLite,
+  │                        injects ~300B structured summary.
+  │
+  ├─ capToolResultSize ──→ Built-in blind truncation (runs before hooks).
+  │
+  ├─ contextPruning ─────→ Drops stale context entries (e.g. cache-ttl).
+  │
+  ├─ compaction ──────────→ Summarizes old turns when the context window
+  │   + memoryFlush         fills up. Flushes to memory before compacting.
+  │
+  ├─ memory-core ─────────→ Extracts facts into a persistent vector store.
+  │
+  └─ memory-wiki ─────────→ Compiles durable knowledge into a structured
+                             wiki vault (entities, concepts, claims).
+```
+
+| Layer | Question it answers |
+|---|---|
+| **context-optimize** | Should this tool output enter the transcript at full size? |
+| **contextPruning** | Is this context entry still fresh enough to keep? |
+| **compaction** | Is the context window getting too full? |
+| **memory-core** | What facts should the agent remember across sessions? |
+| **memory-wiki** | How should durable knowledge be organized and navigated? |
+
+Without context-optimize, a large exec result sits in the transcript burning tokens on every LLM call until compaction or pruning eventually cleans it up — and the raw output is lost once that happens. With it, the transcript only ever sees a compact summary, and the raw artifact stays retrievable in SQLite.
+
 ## What it is not
 
-- not a clone of context-mode
 - not a durable memory system
-- not a replacement for OpenClaw session continuity
+- not a replacement for compaction, contextPruning, or memory-core
 - not a general interception layer for all prompt content
 
 ## Initial scope

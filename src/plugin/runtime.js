@@ -1,11 +1,21 @@
 import path from 'node:path';
 import { createPlugin } from '../index.js';
 
+function definePluginEntry(entry) {
+  return {
+    ...entry,
+    get configSchema() {
+      return {};
+    },
+  };
+}
+
 export const pluginId = 'context-optimize';
 
 export function resolvePluginConfig(api) {
   const pluginConfig = api?.pluginConfig || {};
-  const stateDir = pluginConfig.stateDir || path.join(process.cwd(), '.context-optimize');
+  const rootDir = api?.rootDir || process.cwd();
+  const stateDir = pluginConfig.stateDir || path.join(rootDir, '.context-optimize');
 
   return {
     enabled: pluginConfig.enabled !== false,
@@ -24,35 +34,45 @@ export function registerContextOptimizePlugin(api) {
     return;
   }
 
+  api.logger?.info?.(`[context-optimize] register called, stateDir=${cfg.storageRootDir}, maxBytes=${cfg.maxBytes}, maxLines=${cfg.maxLines}`);
+
   const plugin = createPlugin(cfg);
 
-  api.registerHook(
+  api.on(
     'tool_result_persist',
-    async (event, ctx) => {
-      const result = await plugin.tool_result_persist({
+    (event, ctx) => {
+      const toolName = event?.toolName || event?.message?.toolName || 'unknown';
+      api.logger?.info?.(`[context-optimize] tool_result_persist hook fired, tool=${toolName}, session=${ctx?.sessionKey || 'unknown'}`);
+
+      const result = plugin.tool_result_persist({
         message: event.message,
+        toolName,
         sessionKey: ctx?.sessionKey,
         workspacePath: ctx?.workspacePath || process.cwd(),
       });
 
-      if (!result?.message) return;
+      if (!result?.message) {
+        api.logger?.info?.('[context-optimize] hook pass-through, no rewrite');
+        return;
+      }
+
+      api.logger?.info?.('[context-optimize] hook rewrote persisted tool result');
       return { message: result.message };
     },
     {
-      name: 'context-optimize tool result persistence hook',
-      description: 'Intercept large exec tool outputs, store raw artifacts locally, and replace them with summary payloads.',
+      priority: 10,
     },
   );
 }
 
-const plugin = {
+const plugin = definePluginEntry({
   id: pluginId,
   name: 'context-optimize',
   description: 'Intercept large exec tool outputs before they bloat model context, store them locally, and inject summary-first replacement payloads.',
-  version: '0.1.0',
+  kind: 'tool',
   register(api) {
     registerContextOptimizePlugin(api);
   },
-};
+});
 
 export default plugin;

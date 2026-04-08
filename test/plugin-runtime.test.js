@@ -39,7 +39,7 @@ test('resolvePluginConfig maps pluginConfig to runtime options', () => {
   });
 });
 
-test('registerContextOptimizePlugin wires tool_result_persist hook', async () => {
+test('registerContextOptimizePlugin wires tool_result_persist hook via api.on', async () => {
   const calls = [];
   const tempDir = makeTempDir();
 
@@ -49,8 +49,8 @@ test('registerContextOptimizePlugin wires tool_result_persist hook', async () =>
       byteThreshold: 32,
       lineThreshold: 3,
     },
-    registerHook(name, handler, meta) {
-      calls.push({ name, handler, meta });
+    on(hookName, handler, opts) {
+      calls.push({ hookName, handler, opts });
     },
     logger: {
       info() {},
@@ -60,13 +60,12 @@ test('registerContextOptimizePlugin wires tool_result_persist hook', async () =>
   registerContextOptimizePlugin(api);
 
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].name, 'tool_result_persist');
-  assert.match(calls[0].meta.description, /Intercept large exec tool outputs/);
+  assert.equal(calls[0].hookName, 'tool_result_persist');
 
-  const result = await calls[0].handler(
+  const result = calls[0].handler(
     {
+      toolName: 'exec',
       message: {
-        toolName: 'exec',
         content: [{ type: 'text', text: 'error\nerror\nerror\nerror\n' }],
       },
     },

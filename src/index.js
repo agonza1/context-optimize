@@ -45,7 +45,8 @@ export function countBytes(text) {
   return Buffer.byteLength(text || '', 'utf8');
 }
 
-export function isExecToolMessage(message) {
+export function isExecToolMessage(message, overrideToolName) {
+  if (overrideToolName === 'exec') return true;
   if (!message || typeof message !== 'object') return false;
 
   if (message.toolName === 'exec') return true;
@@ -137,7 +138,7 @@ export function summarizeExecText(text) {
 }
 
 export function interceptToolResultMessage(message, options = {}) {
-  if (!isExecToolMessage(message)) {
+  if (!isExecToolMessage(message, options.toolName)) {
     return { intercepted: false, message };
   }
 
@@ -211,10 +212,11 @@ export function createPlugin(options = {}) {
   return {
     name: 'context-optimize',
 
-    async tool_result_persist({ message, sessionKey, workspacePath }) {
+    tool_result_persist({ message, toolName, sessionKey, workspacePath }) {
       try {
         const result = interceptToolResultMessage(message, {
           ...options,
+          toolName: toolName || options.toolName,
           sessionKey: options.sessionKey || sessionKey,
           workspacePath: options.workspacePath || workspacePath,
           storeArtifact: store ? (artifact) => store.insertArtifact(artifact) : options.storeArtifact,

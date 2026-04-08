@@ -1,0 +1,9 @@
+{
+  "id": "context-optimize",
+  "name": "context-optimize",
+  "description": "Intercept large exec tool outputs before they bloat model context, store them locally, and inject summary-first replacement payloads.",
+  "kind": "tool",
+  "version": "0.1.0",
+  "configSchema": {},
+  "entry": "./src/plugin/runtime.js"
+}

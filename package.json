@@ -14,9 +14,14 @@
   "main": "./src/plugin/runtime.js",
   "openclaw": {
     "id": "context-optimize",
-    "entry": "./src/plugin/runtime.js"
+    "entry": "./src/plugin/runtime.js",
+    "extensions": [
+      "./src/plugin/runtime.js"
+    ],
+    "configSchema": {}
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0"
+    "better-sqlite3": "^11.10.0",
+    "openclaw": "^2026.4.5"
   }
 }

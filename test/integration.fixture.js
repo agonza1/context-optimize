@@ -70,48 +70,49 @@ Total time: 2.3s
   console.log(`   Tool: exec`);
   console.log(`   Size: ${fakeLargeExecOutput.length} bytes, ${fakeLargeExecOutput.split('\n').length} lines\n`);
 
-  // 3. Process through plugin
-  plugin.tool_result_persist({
+  // 3. Process through plugin (synchronous — matches OpenClaw runtime contract)
+  const result = plugin.tool_result_persist({
     message: mockToolResultMessage,
+    toolName: 'exec',
     sessionKey: 'fixture-session-1',
     workspacePath: '/demo/workspace',
-  }).then((result) => {
-    console.log('⚡ Plugin processed result:');
-    console.log(`   Intercepted: ${!!result.message}`);
-
-    if (result.message) {
-      const replacedText = result.message.content[0].text;
-      console.log(`   Replacement text (first 200 chars):\n   ${replacedText.slice(0, 200)}...\n`);
-
-      // 4. Open storage and show what was persisted
-      const store = createStore(tempDir);
-      const latest = latestArtifacts(store.db, { sessionKey: 'fixture-session-1', limit: 1 });
-
-      if (latest.length) {
-        const artifact = latest[0];
-        console.log('💾 Artifact persisted:');
-        console.log(`   ID: ${artifact.id}`);
-        console.log(`   Session: ${artifact.session_key}`);
-        console.log(`   Tool: ${artifact.tool_name}`);
-        console.log(`   Size: ${artifact.bytes} bytes, ${artifact.lines} lines`);
-        console.log(`   Summary: ${artifact.summary}`);
-        console.log(`   Stored at: ${tempDir}/artifacts.db\n`);
-
-        // 5. Show retrieval
-        const preview = artifactPreview(store.db, artifact.id, 5);
-        console.log('📄 Retrieved preview (first 5 lines):');
-        console.log(preview.preview.split('\n').slice(0, 5).join('\n'));
-        console.log('...\n');
-      }
-
-      console.log('✅ Integration fixture complete');
-      console.log(`\n📊 Summary:`);
-      console.log(`   Raw output size: ${fakeLargeExecOutput.length} bytes`);
-      console.log(`   Replacement size: ${replacedText.length} bytes`);
-      console.log(`   Compression: ${(100 - (replacedText.length / fakeLargeExecOutput.length) * 100).toFixed(1)}%`);
-      console.log(`   Tokens saved (est): ${Math.round((fakeLargeExecOutput.length - replacedText.length) / 4)}`);
-    }
   });
+
+  console.log('⚡ Plugin processed result:');
+  console.log(`   Intercepted: ${!!result.message}`);
+
+  if (result.message) {
+    const replacedText = result.message.content[0].text;
+    console.log(`   Replacement text (first 200 chars):\n   ${replacedText.slice(0, 200)}...\n`);
+
+    // 4. Open storage and show what was persisted
+    const store = createStore(tempDir);
+    const latest = latestArtifacts(store.db, { sessionKey: 'fixture-session-1', limit: 1 });
+
+    if (latest.length) {
+      const artifact = latest[0];
+      console.log('💾 Artifact persisted:');
+      console.log(`   ID: ${artifact.id}`);
+      console.log(`   Session: ${artifact.session_key}`);
+      console.log(`   Tool: ${artifact.tool_name}`);
+      console.log(`   Size: ${artifact.bytes} bytes, ${artifact.lines} lines`);
+      console.log(`   Summary: ${artifact.summary}`);
+      console.log(`   Stored at: ${tempDir}/artifacts.db\n`);
+
+      // 5. Show retrieval
+      const preview = artifactPreview(store.db, artifact.id, 5);
+      console.log('📄 Retrieved preview (first 5 lines):');
+      console.log(preview.preview.split('\n').slice(0, 5).join('\n'));
+      console.log('...\n');
+    }
+
+    console.log('✅ Integration fixture complete');
+    console.log(`\n📊 Summary:`);
+    console.log(`   Raw output size: ${fakeLargeExecOutput.length} bytes`);
+    console.log(`   Replacement size: ${replacedText.length} bytes`);
+    console.log(`   Compression: ${(100 - (replacedText.length / fakeLargeExecOutput.length) * 100).toFixed(1)}%`);
+    console.log(`   Tokens saved (est): ${Math.round((fakeLargeExecOutput.length - replacedText.length) / 4)}`);
+  }
 }
 
 simulateLiveSession();
