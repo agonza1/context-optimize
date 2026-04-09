@@ -34,7 +34,6 @@ tool produces large output
   └─ memory-wiki ─────────→ Compiles durable knowledge into a structured
                              wiki vault (entities, concepts, claims).
 ```
-
 | Layer | Question it answers |
 |---|---|
 | **context-optimize** | Should this tool output enter the transcript at full size? |
@@ -42,6 +41,8 @@ tool produces large output
 | **compaction** | Is the context window getting too full? |
 | **memory-core** | What facts should the agent remember across sessions? |
 | **memory-wiki** | How should durable knowledge be organized and navigated? |
+
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/7abde516-5944-42b8-aea6-39e82b441acc" />
 
 Without context-optimize, a large exec result sits in the transcript burning tokens on every LLM call until compaction or pruning eventually cleans it up — and the raw output is lost once that happens. With it, the transcript only ever sees a compact summary, and the raw artifact stays retrievable in SQLite.
 
