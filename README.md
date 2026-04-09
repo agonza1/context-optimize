@@ -1,6 +1,6 @@
 # context-optimize
 
-OpenClaw-native pre-injection interception for bulky tool outputs.
+OpenClaw-native interception and offloading of bulky tool outputs to reduce repeated context bloat across follow-up turns.
 
 ## What it is
 
