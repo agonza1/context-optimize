@@ -5,6 +5,7 @@ import {
   pruneExpiredArtifacts,
   workspaceIdFor,
 } from './storage.js';
+import { analyzeAuto } from './analyze.js';
 
 export const version = '0.1.0';
 
@@ -135,28 +136,49 @@ export function makeArtifactId() {
   return `art_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+export function formatAnalysisSummary(analysis) {
+  if (!analysis || !analysis.format) return null;
+
+  switch (analysis.format) {
+    case 'grep': {
+      const parts = [`${analysis.totalLines} matches across ${analysis.files} files`];
+      const topFiles = Object.entries(analysis.fileBreakdown || {})
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([f, n]) => `${f} (${n})`);
+      if (topFiles.length) parts.push(`top: ${topFiles.join(', ')}`);
+      return `Grep output. ${parts.join('. ')}.`;
+    }
+    case 'error-log': {
+      const parts = [];
+      if (analysis.errorCount) parts.push(`${analysis.errorCount} errors`);
+      if (analysis.warningCount) parts.push(`${analysis.warningCount} warnings`);
+      if (analysis.stackTraceCount) parts.push(`${analysis.stackTraceCount} stack traces`);
+      const detail = parts.length ? parts.join(', ') : 'no errors detected';
+      let msg = `Error log (${analysis.totalLines} lines). ${detail}.`;
+      if (analysis.snippets?.firstError) msg += ` First: ${analysis.snippets.firstError.slice(0, 80)}`;
+      return msg;
+    }
+    case 'test-output':
+      return `Test output. ${analysis.summary || `${analysis.passing} pass, ${analysis.failing} fail`}.`;
+    case 'json':
+      return `JSON. ${analysis.summary || `${analysis.keyCount} keys`}.`;
+    case 'jsonlines':
+      return `JSONL. ${analysis.validJsonLines} valid lines, ${analysis.parseErrors} parse errors.`;
+    default:
+      return null;
+  }
+}
+
 export function summarizeText(text) {
+  const analysis = analyzeAuto(text || '');
+  const formatted = formatAnalysisSummary(analysis);
+  if (formatted) return formatted;
+
   const lines = (text || '').split(/\r?\n/);
-  let errorCount = 0;
-  let warningCount = 0;
-  let failCount = 0;
-
-  for (const line of lines) {
-    if (/\berror\b/i.test(line)) errorCount += 1;
-    if (/\bwarning\b|\bwarn\b/i.test(line)) warningCount += 1;
-    if (/\bfail\b|\bfailed\b/i.test(line)) failCount += 1;
-  }
-
-  const signals = [];
-  if (errorCount) signals.push(`${errorCount} error lines`);
-  if (warningCount) signals.push(`${warningCount} warning lines`);
-  if (failCount) signals.push(`${failCount} fail lines`);
-
-  if (!signals.length) {
-    return 'Large tool output intercepted due to size threshold.';
-  }
-
-  return `Large tool output intercepted. Detected ${signals.join(', ')}.`;
+  const lineCount = lines.length;
+  const preview = lines.slice(0, 3).join(' ').slice(0, 120);
+  return `Text output (${lineCount} lines). Preview: ${preview}`;
 }
 
 export function interceptToolResultMessage(message, options = {}) {

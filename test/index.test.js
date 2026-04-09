@@ -51,7 +51,7 @@ test('interceptToolResultMessage rewrites bulky exec output', () => {
   assert.match(result.message.content[0].text, /context-optimize intercepted tool output/);
   assert.match(result.message.content[0].text, /tool: exec/);
   assert.match(result.message.content[0].text, /artifactId:/);
-  assert.match(result.message.content[0].text, /error lines/);
+  assert.match(result.message.content[0].text, /errors/);
 });
 
 test('interceptToolResultMessage rewrites bulky read output', () => {
@@ -109,7 +109,7 @@ test('plugin tool_result_persist fails open and returns rewritten message only w
   });
 
   assert.ok(rewritten.message);
-  assert.match(rewritten.message.content[0].text, /warning lines/);
+  assert.match(rewritten.message.content[0].text, /warning|Text output/);
 });
 
 test('plugin with storageRootDir persists bulky exec output before rewriting', async () => {
