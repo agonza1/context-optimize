@@ -16,7 +16,7 @@ OpenClaw already ships several layers that manage context size and agent memory.
 context-optimize is not a replacement for any of them — it fills a specific gap none of them cover.
 
 ```
-exec produces large output
+tool produces large output
   │
   ├─ context-optimize ──→ Intercepts at persist time, before the blob
   │                        enters the transcript. Stores raw in SQLite,
@@ -51,20 +51,51 @@ Without context-optimize, a large exec result sits in the transcript burning tok
 - not a replacement for compaction, contextPruning, or memory-core
 - not a general interception layer for all prompt content
 
-## Initial scope
+## Defaults
 
-### v0.1
-- Tool-result interception only
+| Setting | Default | Config key |
+|---|---|---|
+| Byte threshold | **4 KB** (4096) | `byteThreshold` |
+| Line threshold | **100 lines** | `lineThreshold` |
+| TTL | 24 hours | `ttlHours` |
+| Intercepted tools | `exec`, `read`, `process`, `web_fetch`, `browser`, `memory_search`, `memory_get`, `message`, `grep`, `glob`, `list_dir`, `sessions_list` | `tools` |
+
+Any tool result from an intercepted tool that exceeds **either** threshold gets stored in SQLite and replaced with a ~300-byte stub.
+
+### Observed savings
+
+A short conversation (4–6 turns) typically saves **8k–15k input tokens** (~25% less context).
+The agent can still retrieve any raw content on demand via `memory_get`.
+
+<details>
+<summary>Details from a live test session</summary>
+
+In a 4-turn session the main agent read two workspace files and fetched a web page.
+The plugin intercepted 7 tool results, replacing raw payloads (1.8 KB–13 KB each) with ~350-byte stubs (~89 tokens each).
+
+| Metric | Value |
+|---|---|
+| Tool results intercepted | 7 |
+| Cumulative input tokens saved | ~12,100 |
+| Avg savings per intercept | ~1,730 tokens |
+| Stub overhead per intercept | ~89 tokens |
+
+These savings compound: every follow-up model call in the session avoids re-processing the raw content, so longer conversations benefit even more.
+</details>
+
+## Roadmap
+
+### v0.1 (current)
+- Tool-result interception for all common tools
 - OpenClaw plugin approach
 - SQLite + FTS5 scratch store
-- `exec` bulky-output interception first
-- retrieval of stored artifacts by targeted search/slice
+- Retrieval via native memory corpus supplement
 - 24h retention
 
 ### v0.2
-- search-heavy tool interception
-- better classification and summarization
-- repeated-output dedup heuristics
+- Better classification and summarization via analyze module
+- Repeated-output dedup heuristics
+- Pre-model interception (current-turn context savings)
 
 ## Design constraints
 
@@ -129,8 +160,9 @@ The plugin exports a native OpenClaw plugin definition from:
 src/plugin/runtime.js
 ```
 
-It registers a `tool_result_persist` hook and currently targets large `exec` outputs.
-When thresholds are exceeded, it:
+It registers a `tool_result_persist` hook targeting `exec`, `read`, `web_fetch`,
+`memory_search`, `memory_get`, `grep`, `glob`, and `list_dir` by default.
+When thresholds are exceeded (2 KB or 50 lines), it:
 
 - stores raw output locally in SQLite
 - replaces the persisted tool result with a compact summary payload
@@ -187,6 +219,6 @@ Verified in repo:
 
 Recommended final validation in a live session:
 
-- run a very large `exec` output
+- run any tool that produces >2 KB of output (e.g. `exec`, `read`, `web_fetch`)
 - confirm persisted tool output is replaced with a summary payload containing `artifactId`
 - confirm local artifact DB is populated

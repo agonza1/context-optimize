@@ -35,7 +35,7 @@ test('resolvePluginConfig maps pluginConfig to runtime options', () => {
     ttlHours: 48,
     maxBytes: 1234,
     maxLines: 55,
-    interceptedTools: ['exec', 'read'],
+    interceptedTools: ['exec', 'read', 'process', 'web_fetch', 'browser', 'memory_search', 'memory_get', 'message', 'grep', 'glob', 'list_dir', 'sessions_list'],
     source: 'gh issue list',
   });
 });

@@ -22,8 +22,8 @@ export function resolvePluginConfig(api) {
     enabled: pluginConfig.enabled !== false,
     storageRootDir: stateDir,
     ttlHours: Number(pluginConfig.ttlHours ?? 24),
-    maxBytes: Number(pluginConfig.byteThreshold ?? 32 * 1024),
-    maxLines: Number(pluginConfig.lineThreshold ?? 800),
+    maxBytes: Number(pluginConfig.byteThreshold ?? 4 * 1024),
+    maxLines: Number(pluginConfig.lineThreshold ?? 100),
     interceptedTools: pluginConfig.tools || DEFAULT_INTERCEPTED_TOOLS,
     source: pluginConfig.source || null,
   };

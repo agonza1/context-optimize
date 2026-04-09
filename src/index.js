@@ -8,8 +8,8 @@ import {
 
 export const version = '0.1.0';
 
-export const DEFAULT_MAX_BYTES = 32 * 1024;
-export const DEFAULT_MAX_LINES = 800;
+export const DEFAULT_MAX_BYTES = 4 * 1024;
+export const DEFAULT_MAX_LINES = 100;
 
 export function extractTextFromContent(content) {
   if (!Array.isArray(content)) return '';
@@ -45,7 +45,20 @@ export function countBytes(text) {
   return Buffer.byteLength(text || '', 'utf8');
 }
 
-export const DEFAULT_INTERCEPTED_TOOLS = ['exec', 'read'];
+export const DEFAULT_INTERCEPTED_TOOLS = [
+  'exec',
+  'read',
+  'process',
+  'web_fetch',
+  'browser',
+  'memory_search',
+  'memory_get',
+  'message',
+  'grep',
+  'glob',
+  'list_dir',
+  'sessions_list',
+];
 
 export function resolveToolName(message, overrideToolName) {
   if (overrideToolName) return overrideToolName;
