@@ -85,17 +85,18 @@ These savings compound: every follow-up model call in the session avoids re-proc
 
 ## Roadmap
 
-### v0.1 (current)
-- Tool-result interception for all common tools
-- OpenClaw plugin approach
+### v0.1
+- Tool-result interception for 12 common tools
+- OpenClaw native plugin with `tool_result_persist` hook
 - SQLite + FTS5 scratch store
-- Retrieval via native memory corpus supplement
-- 24h retention
+- Retrieval via memory corpus supplement (`memory_get` / `memory_search`)
+- 4 KB / 100-line thresholds, 24h retention
+- Live-validated: ~25% context reduction in short conversations
 
-### v0.2
-- Better classification and summarization via analyze module
+### v0.2 (current)
+- Wire `analyze.js` for smarter per-format summarization (module exists, not yet integrated)
 - Repeated-output dedup heuristics
-- Pre-model interception (current-turn context savings)
+- Pre-model interception (current-turn context savings — today the model still sees the full payload on the turn it was produced)
 
 ## Design constraints
 
@@ -104,10 +105,6 @@ These savings compound: every follow-up model call in the session avoids re-proc
 - No auto-update
 - No outbound network from this project
 - Preserve exact fidelity for code-review/edit flows
-
-## Status
-
-Native OpenClaw plugin packaging and interception runtime are implemented.
 
 ## OpenClaw integration
 
@@ -132,12 +129,6 @@ Point `plugins.load.paths` at this repo, then enable the entry:
 }
 ```
 
-In this workspace, the working path is:
-
-```text
-/Users/alberto/.openclaw/workspace/projects/context-optimize
-```
-
 ### 2. Restart OpenClaw
 
 ```bash
@@ -154,33 +145,20 @@ You should not see a stale `plugin not found` warning for `context-optimize`.
 
 ### 4. How it works at runtime
 
-The plugin exports a native OpenClaw plugin definition from:
-
-```text
-src/plugin/runtime.js
-```
-
-It registers a `tool_result_persist` hook targeting `exec`, `read`, `web_fetch`,
-`memory_search`, `memory_get`, `grep`, `glob`, and `list_dir` by default.
-When thresholds are exceeded (2 KB or 50 lines), it:
+The plugin registers a `tool_result_persist` hook via `src/plugin/runtime.js`.
+When a tool result exceeds the configured thresholds (see Defaults above), it:
 
 - stores raw output locally in SQLite
-- replaces the persisted tool result with a compact summary payload
-- preserves a retrieval handle (`artifactId`) for follow-up inspection
+- replaces the persisted tool result with a ~300-byte stub containing an `artifactId`
 
-### Retrieval via memory engine
+### 5. Retrieval
 
-The plugin registers a `MemoryCorpusSupplement` so stored artifacts are accessible
-through the standard `memory_search` and `memory_get` tools that agents already use:
+Agents retrieve raw content through OpenClaw's existing memory tools — no custom tools needed:
 
 - `memory_search corpus="artifacts"` — full-text search across stored artifacts
 - `memory_get corpus="artifacts" lookup="<artifactId>"` — fetch raw content by ID
 
-A prompt supplement is also registered so agents are informed when artifacts are
-available. No custom tools are needed — retrieval works through OpenClaw's existing
-memory infrastructure.
-
-### 5. Default storage
+### 6. Default storage
 
 By default, runtime storage goes to:
 
@@ -198,27 +176,12 @@ You can override that through plugin config, for example with:
 - `lineThreshold`
 - `source`
 
-### 6. Minimal runtime example
+### 7. Verify it works
 
-OpenClaw resolves plugin config into the runtime wrapper, which then creates the interception plugin internally:
+After restarting, run any tool that produces >4 KB of output. Check the session transcript — the tool result should contain `[context-optimize intercepted tool output]` with an `artifactId`, not the raw content.
 
-```js
-import plugin from './src/plugin/runtime.js';
+You can also run the live monitor:
 
-export default plugin;
+```bash
+node scripts/watch-context.mjs
 ```
-
-### 7. Current verification status
-
-Verified in repo:
-
-- native plugin export present
-- hook registration test passes
-- interception/storage/retrieval tests pass
-- live OpenClaw config now points at this repo path instead of the stale `/tmp/context-optimize-work`
-
-Recommended final validation in a live session:
-
-- run any tool that produces >2 KB of output (e.g. `exec`, `read`, `web_fetch`)
-- confirm persisted tool output is replaced with a summary payload containing `artifactId`
-- confirm local artifact DB is populated

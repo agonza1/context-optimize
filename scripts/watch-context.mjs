@@ -9,7 +9,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const sessionsDir = '/Users/alberto/.openclaw/agents/main/sessions';
+const homeDir = process.env.HOME || process.env.USERPROFILE || '/tmp';
+const sessionsDir = process.env.OPENCLAW_SESSIONS_DIR
+  || path.join(homeDir, '.openclaw', 'agents', 'main', 'sessions');
 
 function findLatestSession() {
   const files = fs.readdirSync(sessionsDir)
