@@ -18,7 +18,7 @@ function toSearchResult(row, index) {
   return {
     corpus: CORPUS_NAME,
     path: row.id,
-    title: `exec artifact ${row.id}`,
+    title: `${row.tool_name} artifact ${row.id}`,
     kind: 'artifact',
     score: recencyScore - index * 0.001,
     snippet: row.summary || `${row.tool_name} output (${row.bytes} bytes, ${row.lines} lines)`,
@@ -50,7 +50,7 @@ export function createArtifactCorpusSupplement(store) {
         return {
           corpus: CORPUS_NAME,
           path: lookup,
-          title: `exec artifact ${lookup}`,
+          title: `artifact ${lookup}`,
           kind: 'artifact',
           content: slice.slice,
           fromLine,
@@ -71,7 +71,7 @@ export function createArtifactCorpusSupplement(store) {
       return {
         corpus: CORPUS_NAME,
         path: artifact.id,
-        title: `exec artifact ${artifact.id}`,
+        title: `${artifact.tool_name} artifact ${artifact.id}`,
         kind: 'artifact',
         content,
         fromLine: 1,
